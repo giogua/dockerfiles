@@ -3,9 +3,10 @@ FROM nextcloud:apache
 RUN apt-get update && apt-get install -y \
     ffmpeg \
     supervisor \
-    nvidia-cuda-toolkit \
   && rm -rf /var/lib/apt/lists/* \
   && mkdir /var/log/supervisord /var/run/supervisord
+
+COPY supervisord.conf /
 
 #CUDA START
 ENV DEBIAN_FRONTEND noninteractive
@@ -27,8 +28,8 @@ RUN echo "Acquire::By-Hash \"no\"; ">/etc/apt/apt.conf.d/01byhash \
  && dpkg -i /root/manual/cuda-repo-ubuntu1804_10.1.243-1_amd64.deb \
  && echo 'deb https://developer.download.nvidia.com/compute/machine-learning/repos/ubuntu1804/x86_64 /' > /etc/apt/sources.list.d/nvidia-ml.list \
  && rm -rf /root/manual
-RUN apt-get update -qq \
- && apt-get install --no-install-recommends -y \
+RUN apt-get update -qq --allow-unauthenticated --allow-insecure-repositories\
+ && apt-get install --no-install-recommends -y --allow-unauthenticated \
     # install cuda toolkit
     cuda-libraries-10-0 \
     cuda-npp-10-0 \
@@ -48,8 +49,6 @@ RUN ls /usr/local/cuda-10.0/targets/x86_64-linux/lib/* | xargs -I{} ln -s {} /us
  && ln -s libcuda.so /usr/lib/x86_64-linux-gnu/libcuda.so.1 \
  && ln -s libnvidia-ml.so /usr/lib/x86_64-linux-gnu/libnvidia-ml.so.1
 #CUDA END
-
-COPY supervisord.conf /
 
 ENV NEXTCLOUD_UPDATE=1
 
