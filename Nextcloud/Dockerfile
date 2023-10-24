@@ -19,12 +19,12 @@ RUN set -ex; \
     savedAptMark="$(apt-mark showmanual)"; \
     \
     apt-get update; \
-   #  apt-get install -y --no-install-recommends \
+    apt-get install -y --no-install-recommends \
         libbz2-dev \
       #   libc-client-dev \
       #   libkrb5-dev \
       #   libsmbclient-dev \
-   #  ; \
+    ; \
     \
    #  docker-php-ext-configure imap --with-kerberos --with-imap-ssl; \
     docker-php-ext-install \
