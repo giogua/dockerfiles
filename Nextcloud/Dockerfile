@@ -1,54 +1,59 @@
 FROM nextcloud:apache
 
-RUN apt-get update && apt-get install -y \
-    ffmpeg \
-    supervisor \
-  && rm -rf /var/lib/apt/lists/* \
-  && mkdir /var/log/supervisord /var/run/supervisord
+RUN set -ex; \
+    \
+    apt-get update; \
+    apt-get install -y --no-install-recommends \
+        ffmpeg \
+        ghostscript \
+        libmagickcore-6.q16-6-extra \
+        procps \
+        smbclient \
+        supervisor \
+#       libreoffice \
+    ; \
+    rm -rf /var/lib/apt/lists/*
+
+RUN set -ex; \
+    \
+    savedAptMark="$(apt-mark showmanual)"; \
+    \
+    apt-get update; \
+   #  apt-get install -y --no-install-recommends \
+        libbz2-dev \
+      #   libc-client-dev \
+      #   libkrb5-dev \
+      #   libsmbclient-dev \
+   #  ; \
+    \
+   #  docker-php-ext-configure imap --with-kerberos --with-imap-ssl; \
+    docker-php-ext-install \
+        bz2 \
+      #   imap \
+    ; \
+   #  pecl install smbclient; \
+   #  docker-php-ext-enable smbclient; \
+    \
+# reset apt-mark's "manual" list so that "purge --auto-remove" will remove all build dependencies
+    apt-mark auto '.*' > /dev/null; \
+    apt-mark manual $savedAptMark; \
+    ldd "$(php -r 'echo ini_get("extension_dir");')"/*.so \
+        | awk '/=>/ { so = $(NF-1); if (index(so, "/usr/local/") == 1) { next }; gsub("^/(usr/)?", "", so); print so }' \
+        | sort -u \
+        | xargs -r dpkg-query --search \
+        | cut -d: -f1 \
+        | sort -u \
+        | xargs -rt apt-mark manual; \
+    \
+    apt-get purge -y --auto-remove -o APT::AutoRemove::RecommendsImportant=false; \
+    rm -rf /var/lib/apt/lists/*
+
+RUN mkdir -p \
+    /var/log/supervisord \
+    /var/run/supervisord \
+;
 
 COPY supervisord.conf /
-
-#CUDA START
-ENV DEBIAN_FRONTEND noninteractive
-RUN apt-get update -qq \
- && apt-get install --no-install-recommends -y \
-    # install essentials
-    gnupg2 \
-    wget \
-    ca-certificates \
- && apt-get clean \
- && rm -rf /var/lib/apt/lists/*
-
-# install from nvidia repositories
-RUN echo "Acquire::By-Hash \"no\"; ">/etc/apt/apt.conf.d/01byhash \
- && wget -nv -P /root/manual https://developer.download.nvidia.com/compute/cuda/repos/ubuntu1804/x86_64/7fa2af80.pub \
- && echo "47217c49dcb9e47a8728b354450f694c9898cd4a126173044a69b1e9ac0fba96  /root/manual/7fa2af80.pub" | sha256sum -c --strict - \
- && apt-key add /root/manual/7fa2af80.pub \
- && wget -nv -P /root/manual https://developer.download.nvidia.com/compute/cuda/repos/ubuntu1804/x86_64/cuda-repo-ubuntu1804_10.1.243-1_amd64.deb \
- && dpkg -i /root/manual/cuda-repo-ubuntu1804_10.1.243-1_amd64.deb \
- && echo 'deb https://developer.download.nvidia.com/compute/machine-learning/repos/ubuntu1804/x86_64 /' > /etc/apt/sources.list.d/nvidia-ml.list \
- && rm -rf /root/manual
-RUN apt-get update -qq --allow-unauthenticated --allow-insecure-repositories\
- && apt-get install --no-install-recommends -y --allow-unauthenticated \
-    # install cuda toolkit
-    cuda-libraries-10-0 \
-    cuda-npp-10-0 \
-# Add libnpp when cuda version > 10
-#   libnpp-11-0
-    cuda-nvtx-10-0 \
-    libcublas10 \
-    libnccl2 \
-    # install cudnn
-    libcudnn7=7.6.3.30-1+cuda10.1 \
- && apt-mark hold libcublas10 \
- && apt-get clean \
- && rm -rf /var/lib/apt/lists/*
-
-# fix issues with shared objects
-RUN ls /usr/local/cuda-10.0/targets/x86_64-linux/lib/* | xargs -I{} ln -s {} /usr/lib/x86_64-linux-gnu/ \
- && ln -s libcuda.so /usr/lib/x86_64-linux-gnu/libcuda.so.1 \
- && ln -s libnvidia-ml.so /usr/lib/x86_64-linux-gnu/libnvidia-ml.so.1
-#CUDA END
 
 ENV NEXTCLOUD_UPDATE=1
 
