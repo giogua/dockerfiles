@@ -55,7 +55,7 @@ RUN mkdir -p \
 
 COPY supervisord.conf /
 
-RUN chown 99:100 /supervisord.conf
+RUN chmod 777 /supervisord.conf
 
 ENV NEXTCLOUD_UPDATE=1
 
